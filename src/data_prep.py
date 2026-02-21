@@ -1,0 +1,73 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+try:
+    from .config import (
+        RAW_DATA_PATH,
+        PROCESSED_DATA_DIR,
+        TARGET_COL,
+        TEST_SIZE,
+        RANDOM_STATE,
+    )
+except ImportError:
+    # Fallback for direct execution
+    from pathlib import Path
+    import sys
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+    RAW_DATA_PATH = PROJECT_ROOT / "data" / "raw" / "synthetic_fraud_dataset.csv"
+    PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
+    TARGET_COL = "is_fraud"
+    TEST_SIZE = 0.2
+    RANDOM_STATE = 42
+
+
+def load_raw_data(path: str | None = None) -> pd.DataFrame:
+    """Load the raw synthetic fraud dataset."""
+    csv_path = RAW_DATA_PATH if path is None else path
+    df = pd.read_csv(csv_path)
+    return df
+
+
+def train_test_split_stratified(df: pd.DataFrame):
+    """Create a stratified train/test split on the fraud label."""
+    if TARGET_COL not in df.columns:
+        raise ValueError(f"Target column '{TARGET_COL}' not found in dataframe.")
+
+    train_df, test_df = train_test_split(
+        df,
+        test_size=TEST_SIZE,
+        stratify=df[TARGET_COL],
+        random_state=RANDOM_STATE,
+    )
+
+    return train_df, test_df
+
+
+def save_processed(train_df: pd.DataFrame, test_df: pd.DataFrame) -> None:
+    """Save train and test data to the processed folder."""
+    train_path = PROCESSED_DATA_DIR / "transactions_train.csv"
+    test_path = PROCESSED_DATA_DIR / "transactions_test.csv"
+
+    train_df.to_csv(train_path, index=False)
+    test_df.to_csv(test_path, index=False)
+
+    print(f"Saved train data to: {train_path}")
+    print(f"Saved test data to:  {test_path}")
+
+
+def main() -> None:
+    df = load_raw_data()
+    print(f"Loaded raw data with shape: {df.shape}")
+
+    train_df, test_df = train_test_split_stratified(df)
+    print(f"Train shape: {train_df.shape}, Test shape: {test_df.shape}")
+
+    print(train_df[TARGET_COL].value_counts(normalize=True).rename("train_class_ratio"))
+    print(test_df[TARGET_COL].value_counts(normalize=True).rename("test_class_ratio"))
+
+    save_processed(train_df, test_df)
+
+
+if __name__ == "__main__":
+    main()
